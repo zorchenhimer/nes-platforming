@@ -6,6 +6,16 @@
     Solid
 .endenum
 
+Block_RowsLow:
+.repeat 15, row
+    .byte .lobyte(Blocks_FloorOnly + (16 * row))
+.endrepeat
+
+Block_RowsHi:
+.repeat 15, row
+    .byte .hibyte(Blocks_FloorOnly + (16 * row))
+.endrepeat
+
 ; Used for collisions
 Blocks_FloorOnly:
 

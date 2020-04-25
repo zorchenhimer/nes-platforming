@@ -46,6 +46,12 @@ Controller_Old: .res 1
 btnX: .res 1
 btnY: .res 1
 
+; Is the player on the ground?
+; 0 = no
+; 1 = yes
+IsGrounded: .res 1
+IsJumping: .res 1
+
 .segment "OAM"
 
 SPRITE_X    = 3
@@ -214,6 +220,37 @@ Frame:
     inc PlayerX
 :
 
+    lda IsJumping
+    beq @noJump
+    dec PlayerY
+    dec PlayerY
+    dec IsJumping
+
+    lda #BUTTON_A
+    and Controller
+    bne @collideDone
+    lda #0
+    sta IsJumping
+    jmp @collideDone
+
+@noJump:
+
+    lda IsGrounded
+    bne @grounded
+    jsr Player_Falling
+    jmp @collideDone
+@grounded:
+    lda #BUTTON_A
+    jsr ButtonPressed
+    beq @collideDone
+
+    lda #0
+    sta IsGrounded
+    lda #20 ; length of the jump
+    sta IsJumping
+
+@collideDone:
+
     lda #1
     sta Sleeping
 :
@@ -263,6 +300,40 @@ NMI:
     sta Sleeping
     rti
 
+Player_Falling:
+    inc PlayerY
+    inc PlayerY
+    lda PlayerY
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tax
+    lda Block_RowsLow, x
+    sta DataPointer
+    lda Block_RowsHi, x
+    sta DataPointer+1
+    lda PlayerX
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tay
+    lda (DataPointer), y
+    beq @done
+    txa
+    asl a
+    asl a
+    asl a
+    asl a
+    sec
+    sbc #2
+    sta PlayerY
+    lda #1
+    sta IsGrounded
+@done:
+    rts
+
 ; The Anchor point is on the bottom of the the sprite
 ; and centered
 UpdatePlayerSprite:
@@ -310,7 +381,7 @@ ReadControllers:
     rts
 
 ; Was a button pressed this frame?
-ButtonPressedP1:
+ButtonPressed:
     sta btnX
     and Controller
     sta btnY
