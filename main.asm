@@ -235,11 +235,11 @@ Frame:
 
 @noJump:
 
-    lda IsGrounded
-    bne @grounded
     jsr Player_Falling
-    jmp @collideDone
-@grounded:
+
+    lda IsGrounded
+    beq @collideDone
+    ; only jump on the ground
     lda #BUTTON_A
     jsr ButtonPressed
     beq @collideDone
@@ -301,6 +301,8 @@ NMI:
     rti
 
 Player_Falling:
+    lda #0
+    sta IsGrounded
     inc PlayerY
     inc PlayerY
     lda PlayerY

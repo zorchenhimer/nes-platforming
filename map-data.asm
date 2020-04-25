@@ -24,13 +24,20 @@ Blocks_FloorOnly:
 .endrepeat
 
 ; 10 rows of air
-.repeat 11
+.repeat 10
     .byte BlockType::Solid
     .repeat 14
         .byte BlockType::Air
     .endrepeat
     .byte BlockType::Solid
 .endrepeat
+
+.byte BlockType::Solid
+.byte BlockType::Solid
+.repeat 13
+    .byte BlockType::Air
+.endrepeat
+.byte BlockType::Solid
 
 ; The rest is solid ground
 .repeat 3
