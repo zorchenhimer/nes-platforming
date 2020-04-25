@@ -3,6 +3,16 @@
 .feature leading_dot_in_identifiers
 .feature underline_in_numbers
 
+; Button Constants
+BUTTON_A        = 1 << 7
+BUTTON_B        = 1 << 6
+BUTTON_SELECT   = 1 << 5
+BUTTON_START    = 1 << 4
+BUTTON_UP       = 1 << 3
+BUTTON_DOWN     = 1 << 2
+BUTTON_LEFT     = 1 << 1
+BUTTON_RIGHT    = 1 << 0
+
 .include "nes2header.inc"
 nes2mapper 1
 nes2prg 1 * 16 * 1024  ; 256k PRG
@@ -25,7 +35,25 @@ DataPointer: .res 2
 OddEven: .res 1
 RowCount: .res 1
 
+PlayerX: .res 1
+PlayerY: .res 1
+
+Sleeping: .res 1
+
+Controller: .res 1
+Controller_Old: .res 1
+
+btnX: .res 1
+btnY: .res 1
+
 .segment "OAM"
+
+SPRITE_X    = 3
+SPRITE_Y    = 0
+SPRITE_ATTR = 2
+SPRITE_TILE = 1
+
+Player: .res 4*4
 
 .segment "BSS"
 
@@ -155,7 +183,42 @@ RESET:
     lda #$1E
     sta $2001   ; enable sprites, bg, & 8px for both bg & sp
 
+    ; setup the player sprite
+    lda #$00
+    sta Player+(4*0)+SPRITE_TILE
+    lda #$01
+    sta Player+(4*1)+SPRITE_TILE
+    lda #$10
+    sta Player+(4*2)+SPRITE_TILE
+    lda #$11
+    sta Player+(4*3)+SPRITE_TILE
+
+    lda #50
+    sta PlayerX
+    sta PlayerY
+
 Frame:
+    jsr UpdatePlayerSprite
+
+    jsr ReadControllers
+
+    lda #BUTTON_LEFT
+    and Controller
+    beq :+
+    dec PlayerX
+:
+
+    lda #BUTTON_RIGHT
+    and Controller
+    beq :+
+    inc PlayerX
+:
+
+    lda #1
+    sta Sleeping
+:
+    lda Sleeping
+    bne :-
     jmp Frame
 
 NMI:
@@ -196,7 +259,81 @@ NMI:
     lda #0
     sta $2005
     sta $2005
+
+    sta Sleeping
     rti
+
+; The Anchor point is on the bottom of the the sprite
+; and centered
+UpdatePlayerSprite:
+    lda PlayerY
+    sec
+    sbc #15
+    sta Player+(0*4)+SPRITE_Y
+    sta Player+(1*4)+SPRITE_Y
+
+    clc
+    adc #8
+    sta Player+(2*4)+SPRITE_Y
+    sta Player+(3*4)+SPRITE_Y
+
+    lda PlayerX
+    sec
+    sbc #7
+    sta Player+(0*4)+SPRITE_X
+    sta Player+(2*4)+SPRITE_X
+
+    clc
+    adc #8
+    sta Player+(1*4)+SPRITE_X
+    sta Player+(3*4)+SPRITE_X
+    rts
+
+; Player input
+ReadControllers:
+    lda Controller
+    sta Controller_Old
+
+    ; Freeze input
+    lda #1
+    sta $4016
+    lda #0
+    sta $4016
+
+    LDX #$08
+@player1:
+    lda $4016
+    lsr A           ; Bit0 -> Carry
+    rol Controller ; Bit0 <- Carry
+    dex
+    bne @player1
+    rts
+
+; Was a button pressed this frame?
+ButtonPressedP1:
+    sta btnX
+    and Controller
+    sta btnY
+
+    lda Controller_Old
+    and btnX
+
+    cmp btnY
+    bne btnPress_stb
+
+    ; no button change
+    rts
+
+btnPress_stb:
+    ; button released
+    lda btnY
+    bne btnPress_stc
+    rts
+
+btnPress_stc:
+    ; button pressed
+    lda #1
+    rts
 
 BG_Palette:
     .byte $0F, $00, $10, $20
