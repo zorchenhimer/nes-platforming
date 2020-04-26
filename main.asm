@@ -1,7 +1,5 @@
 ; asmsyntax=ca65
 
-; TODO: top collision (underside of platforms
-
 .feature leading_dot_in_identifiers
 .feature underline_in_numbers
 
@@ -207,51 +205,47 @@ RESET:
 
 Frame:
     jsr UpdatePlayerSprite
-
     jsr ReadControllers
 
     lda #BUTTON_LEFT
     and Controller
     beq :+
-    jsr MoveLeft
+    jsr Player_MoveLeft
 :
 
     lda #BUTTON_RIGHT
     and Controller
     beq :+
-    jsr MoveRight
+    jsr Player_MoveRight
 :
 
     lda IsJumping
     beq @noJump
-    dec PlayerY
-    dec PlayerY
-    dec IsJumping
+    jsr Player_Jumping
 
     lda #BUTTON_A
     and Controller
-    bne @collideDone
+    bne @jumpDone
     lda #0
     sta IsJumping
-    jmp @collideDone
+    jmp @jumpDone
 
 @noJump:
-
     jsr Player_Falling
 
     lda IsGrounded
-    beq @collideDone
+    beq @jumpDone
     ; only jump on the ground
     lda #BUTTON_A
     jsr ButtonPressed
-    beq @collideDone
+    beq @jumpDone
 
     lda #0
     sta IsGrounded
     lda #20 ; length of the jump
     sta IsJumping
 
-@collideDone:
+@jumpDone:
 
     lda #1
     sta Sleeping
@@ -304,13 +298,12 @@ NMI:
 
 PLAYER_XOFFSET  = 3
 PLAYER_YOFFSET  = 6
-PLAYER_TOP      = 10
 
 ; Two points:
 ; Left  = (PlayerX-PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
 ; Right = (PlayerX+PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
 
-MoveLeft:
+Player_MoveLeft:
     dec PlayerX
 
     lda PlayerY
@@ -340,7 +333,7 @@ MoveLeft:
 @done:
     rts
 
-MoveRight:
+Player_MoveRight:
     inc PlayerX
 
     lda PlayerY
@@ -367,6 +360,40 @@ MoveRight:
     lda (DataPointer), y
     beq @done
     dec PlayerX
+@done:
+    rts
+
+PLAYER_TOP      = 10
+Player_Jumping:
+    dec PlayerY
+    dec PlayerY
+    dec IsJumping
+
+    lda PlayerY
+    sec
+    sbc #PLAYER_TOP
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tax
+    lda Block_RowsLow, x
+    sta DataPointer
+    lda Block_RowsHi, x
+    sta DataPointer+1
+
+    lda PlayerX
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tay
+    lda (DataPointer), y
+    beq @done
+    inc PlayerY
+    inc PlayerY
+    lda #0
+    sta IsJumping
 @done:
     rts
 
