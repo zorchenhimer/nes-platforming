@@ -8,12 +8,12 @@
 
 Block_RowsLow:
 .repeat 15, row
-    .byte .lobyte(Blocks_FloorOnly + (16 * row))
+    .byte .lobyte(Blocks_FromTiled + (16 * row))
 .endrepeat
 
 Block_RowsHi:
 .repeat 15, row
-    .byte .hibyte(Blocks_FloorOnly + (16 * row))
+    .byte .hibyte(Blocks_FromTiled + (16 * row))
 .endrepeat
 
 ; Used for collisions
@@ -45,3 +45,21 @@ Blocks_FloorOnly:
         .byte BlockType::Solid
     .endrepeat
 .endrepeat
+
+Blocks_FromTiled:
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,2,2,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,2,2,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,2,2,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+

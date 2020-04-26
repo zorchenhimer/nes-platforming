@@ -1,5 +1,7 @@
 ; asmsyntax=ca65
 
+; TODO: top collision (underside of platforms
+
 .feature leading_dot_in_identifiers
 .feature underline_in_numbers
 
@@ -116,9 +118,9 @@ RESET:
     dex
     bne :-
 
-    lda #<Blocks_FloorOnly
+    lda #<Blocks_FromTiled
     sta DataPointer
-    lda #>Blocks_FloorOnly
+    lda #>Blocks_FromTiled
     sta DataPointer+1
 
     lda #$20
@@ -135,7 +137,7 @@ RESET:
     lda (DataPointer), y
     bne @ground
     ; Air
-    lda #$0F
+    lda #$00
     sta $2007
     sta $2007
     jmp @next
@@ -144,16 +146,16 @@ RESET:
     bit OddEven
     bmi @odd
     ; even
-    lda #$20
+    lda #$02
     sta $2007
-    lda #$21
+    lda #$03
     sta $2007
     jmp @next
 
 @odd:
-    lda #$30
+    lda #$12
     sta $2007
-    lda #$31
+    lda #$13
     sta $2007
     ;jmp @next
 
@@ -190,16 +192,16 @@ RESET:
     sta $2001   ; enable sprites, bg, & 8px for both bg & sp
 
     ; setup the player sprite
-    lda #$00
+    lda #$0E
     sta Player+(4*0)+SPRITE_TILE
-    lda #$01
+    lda #$0F
     sta Player+(4*1)+SPRITE_TILE
-    lda #$10
+    lda #$1E
     sta Player+(4*2)+SPRITE_TILE
-    lda #$11
+    lda #$1F
     sta Player+(4*3)+SPRITE_TILE
 
-    lda #50
+    lda #40
     sta PlayerX
     sta PlayerY
 
@@ -211,13 +213,13 @@ Frame:
     lda #BUTTON_LEFT
     and Controller
     beq :+
-    dec PlayerX
+    jsr MoveLeft
 :
 
     lda #BUTTON_RIGHT
     and Controller
     beq :+
-    inc PlayerX
+    jsr MoveRight
 :
 
     lda IsJumping
@@ -299,6 +301,74 @@ NMI:
 
     sta Sleeping
     rti
+
+PLAYER_XOFFSET  = 3
+PLAYER_YOFFSET  = 6
+PLAYER_TOP      = 10
+
+; Two points:
+; Left  = (PlayerX-PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
+; Right = (PlayerX+PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
+
+MoveLeft:
+    dec PlayerX
+
+    lda PlayerY
+    sec
+    sbc #PLAYER_YOFFSET
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tax
+    lda Block_RowsLow, x
+    sta DataPointer
+    lda Block_RowsHi, x
+    sta DataPointer+1
+
+    lda PlayerX
+    sec
+    sbc #PLAYER_XOFFSET
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tay
+    lda (DataPointer), y
+    beq @done
+    inc PlayerX
+@done:
+    rts
+
+MoveRight:
+    inc PlayerX
+
+    lda PlayerY
+    sec
+    sbc #PLAYER_YOFFSET
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tax
+    lda Block_RowsLow, x
+    sta DataPointer
+    lda Block_RowsHi, x
+    sta DataPointer+1
+
+    lda PlayerX
+    clc
+    adc #PLAYER_XOFFSET
+    lsr a
+    lsr a
+    lsr a
+    lsr a
+    tay
+    lda (DataPointer), y
+    beq @done
+    dec PlayerX
+@done:
+    rts
 
 Player_Falling:
     lda #0
