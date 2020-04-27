@@ -16,49 +16,19 @@ Block_RowsHi:
     .byte .hibyte(Blocks_FromTiled + (16 * row))
 .endrepeat
 
-; Used for collisions
-Blocks_FloorOnly:
-
-.repeat 16
-    .byte BlockType::Solid
-.endrepeat
-
-; 10 rows of air
-.repeat 10
-    .byte BlockType::Solid
-    .repeat 14
-        .byte BlockType::Air
-    .endrepeat
-    .byte BlockType::Solid
-.endrepeat
-
-.byte BlockType::Solid
-.byte BlockType::Solid
-.repeat 13
-    .byte BlockType::Air
-.endrepeat
-.byte BlockType::Solid
-
-; The rest is solid ground
-.repeat 3
-    .repeat 16
-        .byte BlockType::Solid
-    .endrepeat
-.endrepeat
-
 Blocks_FromTiled:
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
-    .byte 2,0,0,0,0,0,0,0,0,0,2,2,0,0,0,2
+    .byte 2,0,0,0,0,0,0,2,2,0,2,2,0,2,2,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
-    .byte 2,0,0,0,0,0,0,2,2,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,0,2,2,0,2,2,0,0,0,2
     .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
     .byte 2,0,0,0,2,2,0,0,0,0,0,0,0,0,0,2
-    .byte 2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
-    .byte 2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,2
+    .byte 2,0,0,0,0,0,2,2,0,0,0,0,0,0,0,2
+    .byte 2,2,2,0,0,0,0,0,2,2,0,0,0,0,0,2
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
