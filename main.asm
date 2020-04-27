@@ -13,6 +13,10 @@ BUTTON_DOWN     = 1 << 2
 BUTTON_LEFT     = 1 << 1
 BUTTON_RIGHT    = 1 << 0
 
+JMP_START_SPEED = 3
+JMP_FRAMES = 30
+JMP_RATE = 25
+
 .include "nes2header.inc"
 nes2mapper 1
 nes2prg 1 * 16 * 1024  ; 256k PRG
@@ -53,6 +57,8 @@ IsGrounded: .res 1
 IsJumping: .res 1
 JumpFrame: .res 1
 IsFalling: .res 1
+
+JumpSpeed: .res 2
 
 .segment "OAM"
 
@@ -246,8 +252,11 @@ Frame:
 
     lda #0
     sta IsGrounded
-    lda #JUMP_LENGTH ; length of the jump
+    sta JumpSpeed
+    lda #JMP_FRAMES ; length of the jump
     sta IsJumping
+    lda #JMP_START_SPEED
+    sta JumpSpeed+1
 
 @jumpDone:
 
@@ -368,15 +377,26 @@ Player_MoveRight:
     rts
 
 PLAYER_TOP      = 10
+
 Player_Jumping:
     ldx JumpFrame
+
+    lda JumpSpeed
+    sec
+    sbc #JMP_RATE
+    sta JumpSpeed
+
+    lda JumpSpeed+1
+    sbc #0
+    sta JumpSpeed+1
+
     lda PlayerY
     sec
-    sbc JumpValues_Fract, x
+    sbc JumpSpeed
     sta PlayerY
 
     lda PlayerY+1
-    sbc JumpValues_Whole, x
+    sbc JumpSpeed+1
     sta PlayerY+1
 
     inc JumpFrame
@@ -534,72 +554,6 @@ BG_Palette:
 
 SP_Palette:
     .byte $07, $17, $27, $37
-
-JumpValues_Whole:
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $02
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $01
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-    .byte $00
-
-JumpValues_Fract:
-    .byte $22
-    .byte $18
-    .byte $0E
-    .byte $03
-    .byte $F9
-    .byte $EF
-    .byte $E5
-    .byte $DB
-    .byte $D1
-    .byte $C7
-    .byte $BD
-    .byte $B3
-    .byte $A9
-    .byte $9F
-    .byte $95
-    .byte $8B
-    .byte $81
-    .byte $77
-    .byte $6D
-    .byte $63
-    .byte $59
-    .byte $4F
-    .byte $45
-    .byte $3B
-    .byte $31
-    .byte $27
-    .byte $1D
-    .byte $13
-    .byte $09
-    .byte $00
-
-JUMP_LENGTH = * - JumpValues_Fract
 
 JumpValues_WholeMacro:
 .include "map-data.asm"
