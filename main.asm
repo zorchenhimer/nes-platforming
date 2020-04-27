@@ -57,8 +57,12 @@ IsGrounded: .res 1
 IsJumping: .res 1
 JumpFrame: .res 1
 IsFalling: .res 1
+LastGrounded: .res 1
 
 JumpSpeed: .res 2
+
+COYOTE = 5  ; # of frames
+CoyoteCounter: .res 1
 
 .segment "OAM"
 
@@ -241,11 +245,33 @@ Frame:
     jmp @jumpDone
 
 @noJump:
-    jsr Player_Falling
+    lda CoyoteCounter
+    beq :+
+    dec CoyoteCounter
+:
 
     lda IsGrounded
+    sta LastGrounded
+    jsr Player_Falling
+    lda IsGrounded
+    bne :+
+    lda LastGrounded
+    beq :+
+
+    lda #COYOTE
+    sta CoyoteCounter
+:
+
+    lda IsGrounded
+    beq @checkCoyote
+    jmp @justjump
+
+@checkCoyote:
+    lda CoyoteCounter
     beq @jumpDone
+
     ; only jump on the ground
+@justjump:
     lda #BUTTON_A
     jsr ButtonPressed
     beq @jumpDone
