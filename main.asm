@@ -35,8 +35,8 @@ DataPointer: .res 2
 OddEven: .res 1
 RowCount: .res 1
 
-PlayerX: .res 1
-PlayerY: .res 1
+PlayerX: .res 2
+PlayerY: .res 2
 
 Sleeping: .res 1
 
@@ -51,6 +51,8 @@ btnY: .res 1
 ; 1 = yes
 IsGrounded: .res 1
 IsJumping: .res 1
+JumpFrame: .res 1
+IsFalling: .res 1
 
 .segment "OAM"
 
@@ -200,8 +202,8 @@ RESET:
     sta Player+(4*3)+SPRITE_TILE
 
     lda #40
-    sta PlayerX
-    sta PlayerY
+    sta PlayerX+1
+    sta PlayerY+1
 
 Frame:
     jsr UpdatePlayerSprite
@@ -228,6 +230,8 @@ Frame:
     bne @jumpDone
     lda #0
     sta IsJumping
+    sta JumpFrame
+    sta IsFalling
     jmp @jumpDone
 
 @noJump:
@@ -242,7 +246,7 @@ Frame:
 
     lda #0
     sta IsGrounded
-    lda #20 ; length of the jump
+    lda #JUMP_LENGTH ; length of the jump
     sta IsJumping
 
 @jumpDone:
@@ -304,9 +308,9 @@ PLAYER_YOFFSET  = 6
 ; Right = (PlayerX+PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
 
 Player_MoveLeft:
-    dec PlayerX
+    dec PlayerX+1
 
-    lda PlayerY
+    lda PlayerY+1
     sec
     sbc #PLAYER_YOFFSET
     lsr a
@@ -319,7 +323,7 @@ Player_MoveLeft:
     lda Block_RowsHi, x
     sta DataPointer+1
 
-    lda PlayerX
+    lda PlayerX+1
     sec
     sbc #PLAYER_XOFFSET
     lsr a
@@ -329,14 +333,14 @@ Player_MoveLeft:
     tay
     lda (DataPointer), y
     beq @done
-    inc PlayerX
+    inc PlayerX+1
 @done:
     rts
 
 Player_MoveRight:
-    inc PlayerX
+    inc PlayerX+1
 
-    lda PlayerY
+    lda PlayerY+1
     sec
     sbc #PLAYER_YOFFSET
     lsr a
@@ -349,7 +353,7 @@ Player_MoveRight:
     lda Block_RowsHi, x
     sta DataPointer+1
 
-    lda PlayerX
+    lda PlayerX+1
     clc
     adc #PLAYER_XOFFSET
     lsr a
@@ -359,17 +363,33 @@ Player_MoveRight:
     tay
     lda (DataPointer), y
     beq @done
-    dec PlayerX
+    dec PlayerX+1
 @done:
     rts
 
 PLAYER_TOP      = 10
 Player_Jumping:
-    dec PlayerY
-    dec PlayerY
-    dec IsJumping
-
+    ldx JumpFrame
     lda PlayerY
+    sec
+    sbc JumpValues_Fract, x
+    sta PlayerY
+
+    lda PlayerY+1
+    sbc JumpValues_Whole, x
+    sta PlayerY+1
+
+    inc JumpFrame
+    dec IsJumping
+    bne @DoCollide
+
+    lda #0
+    sta JumpFrame
+    sta PlayerY
+    sta JumpFrame
+
+@DoCollide:
+    lda PlayerY+1
     sec
     sbc #PLAYER_TOP
     lsr a
@@ -382,7 +402,7 @@ Player_Jumping:
     lda Block_RowsHi, x
     sta DataPointer+1
 
-    lda PlayerX
+    lda PlayerX+1
     lsr a
     lsr a
     lsr a
@@ -390,19 +410,20 @@ Player_Jumping:
     tay
     lda (DataPointer), y
     beq @done
-    inc PlayerY
-    inc PlayerY
+    inc PlayerY+1
+    inc PlayerY+1
     lda #0
     sta IsJumping
+    sta PlayerY
 @done:
     rts
 
 Player_Falling:
     lda #0
     sta IsGrounded
-    inc PlayerY
-    inc PlayerY
-    lda PlayerY
+    inc PlayerY+1
+    inc PlayerY+1
+    lda PlayerY+1
     lsr a
     lsr a
     lsr a
@@ -412,7 +433,7 @@ Player_Falling:
     sta DataPointer
     lda Block_RowsHi, x
     sta DataPointer+1
-    lda PlayerX
+    lda PlayerX+1
     lsr a
     lsr a
     lsr a
@@ -427,16 +448,19 @@ Player_Falling:
     asl a
     sec
     sbc #2
-    sta PlayerY
+    sta PlayerY+1
     lda #1
     sta IsGrounded
+    lda #0
+    sta PlayerY
+    sta JumpFrame
 @done:
     rts
 
 ; The Anchor point is on the bottom of the the sprite
 ; and centered
 UpdatePlayerSprite:
-    lda PlayerY
+    lda PlayerY+1
     sec
     sbc #15
     sta Player+(0*4)+SPRITE_Y
@@ -447,7 +471,7 @@ UpdatePlayerSprite:
     sta Player+(2*4)+SPRITE_Y
     sta Player+(3*4)+SPRITE_Y
 
-    lda PlayerX
+    lda PlayerX+1
     sec
     sbc #7
     sta Player+(0*4)+SPRITE_X
@@ -509,6 +533,73 @@ BG_Palette:
     .byte $0F, $00, $10, $20
 
 SP_Palette:
-    .byte $0A, $1A, $2A, $3A
+    .byte $07, $17, $27, $37
 
+JumpValues_Whole:
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $02
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $01
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+    .byte $00
+
+JumpValues_Fract:
+    .byte $22
+    .byte $18
+    .byte $0E
+    .byte $03
+    .byte $F9
+    .byte $EF
+    .byte $E5
+    .byte $DB
+    .byte $D1
+    .byte $C7
+    .byte $BD
+    .byte $B3
+    .byte $A9
+    .byte $9F
+    .byte $95
+    .byte $8B
+    .byte $81
+    .byte $77
+    .byte $6D
+    .byte $63
+    .byte $59
+    .byte $4F
+    .byte $45
+    .byte $3B
+    .byte $31
+    .byte $27
+    .byte $1D
+    .byte $13
+    .byte $09
+    .byte $00
+
+JUMP_LENGTH = * - JumpValues_Fract
+
+JumpValues_WholeMacro:
 .include "map-data.asm"
