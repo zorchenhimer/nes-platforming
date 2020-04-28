@@ -13,9 +13,19 @@ BUTTON_DOWN     = 1 << 2
 BUTTON_LEFT     = 1 << 1
 BUTTON_RIGHT    = 1 << 0
 
+; Pixels per frame start jump speed
 JMP_START_SPEED = 3
+; Number of frames accelerating in a jump
 JMP_FRAMES = 30
+; Decay rate for each frame in a jump in fractions of a pixel (1/256)
 JMP_RATE = 25
+
+; Offsets for player horizontal collision
+PLAYER_XOFFSET  = 3
+PLAYER_YOFFSET  = 6
+
+; Vertical offset for head collision
+PLAYER_TOP      = 10
 
 .include "nes2header.inc"
 nes2mapper 1
@@ -31,22 +41,29 @@ nes2end
     .word IRQ
 
 .segment "TILES"
-
     .incbin "tiles.chr"
 
 .segment "ZEROPAGE"
 DataPointer: .res 2
-OddEven: .res 1
-RowCount: .res 1
 
+; Odd/Even tile row.  Used when drawing map.
+OddEven: .res 1
+
+; Player X and Y.  First byte is
+; fraction, second is whole number.
 PlayerX: .res 2
 PlayerY: .res 2
 
+; NMI check
 Sleeping: .res 1
 
+; This frame's controller input
 Controller: .res 1
+; Last frame's controller input
 Controller_Old: .res 1
 
+; Local variables for button
+; pressed detection
 btnX: .res 1
 btnY: .res 1
 
@@ -59,8 +76,11 @@ JumpFrame: .res 1
 IsFalling: .res 1
 LastGrounded: .res 1
 
+; Current Jump acceleration per frame
 JumpSpeed: .res 2
 
+; Grace period after falling off ledge
+; that you can still jump, in frames.
 COYOTE = 5  ; # of frames
 CoyoteCounter: .res 1
 
@@ -71,6 +91,7 @@ SPRITE_Y    = 0
 SPRITE_ATTR = 2
 SPRITE_TILE = 1
 
+; Player sprite is 2x2 tiles.
 Player: .res 4*4
 
 .segment "BSS"
@@ -114,6 +135,7 @@ RESET:
     inx
     bne :-  ; loop if != 0
 
+    ; Clear the attribute table to all $00
     bit $2002
     lda #$23
     sta $2006
@@ -128,6 +150,8 @@ RESET:
     dex
     bne :-
 
+    ; Set the DataPointer to the
+    ; start of the data.
     lda #<Blocks_FromTiled
     sta DataPointer
     lda #>Blocks_FromTiled
@@ -153,6 +177,8 @@ RESET:
     jmp @next
 
 @ground:
+    ; Even rows draw the top
+    ; half of a block
     bit OddEven
     bmi @odd
     ; even
@@ -163,6 +189,8 @@ RESET:
     jmp @next
 
 @odd:
+    ; Odd rows draw the bottom
+    ; half of a block
     lda #$12
     sta $2007
     lda #$13
@@ -177,12 +205,16 @@ RESET:
 @nextRow:
     ldy #0
 
+    ; Filp/flop the flipflop
     lda OddEven
     eor #$FF
     sta OddEven
     and #$80
     bne @row
 
+    ; Only update the data pointer when
+    ; an even row is next.  Odd rows use
+    ; the same data as the previous row.
     lda DataPointer
     clc
     adc #16
@@ -201,7 +233,7 @@ RESET:
     lda #$1E
     sta $2001   ; enable sprites, bg, & 8px for both bg & sp
 
-    ; setup the player sprite
+    ; setup the player sprite tiles
     lda #$0E
     sta Player+(4*0)+SPRITE_TILE
     lda #$0F
@@ -211,14 +243,17 @@ RESET:
     lda #$1F
     sta Player+(4*3)+SPRITE_TILE
 
+    ; Set the initial X/Y for the player
     lda #40
     sta PlayerX+1
     sta PlayerY+1
 
 Frame:
+    ; Update the X/Y for each sprite
+    ; in the player metasprite
     jsr UpdatePlayerSprite
-    jsr ReadControllers
 
+    jsr ReadControllers
     lda #BUTTON_LEFT
     and Controller
     beq :+
@@ -267,10 +302,11 @@ Frame:
     jmp @justjump
 
 @checkCoyote:
+    ; Give a few frames of grace to jump after
+    ; falling off a ledge
     lda CoyoteCounter
     beq @jumpDone
 
-    ; only jump on the ground
 @justjump:
     lda #BUTTON_A
     jsr ButtonPressed
@@ -335,19 +371,22 @@ NMI:
     sta Sleeping
     rti
 
-PLAYER_XOFFSET  = 3
-PLAYER_YOFFSET  = 6
-
-; Two points:
+; Player_MoveLeft and Player_MoveRight do the same
+; thing but opposite each other.  First move the player
+; on the X axis, then check to see if the player collides
+; with a block.  If so, move the player back outside
+; the block.
+;
+; Collision with two horizontal points:
 ; Left  = (PlayerX-PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
 ; Right = (PlayerX+PLAYER_XOFFSET, PlayerY-PLAYER_YOFFSET)
-
 Player_MoveLeft:
     dec PlayerX+1
 
     lda PlayerY+1
     sec
     sbc #PLAYER_YOFFSET
+    ; Divide by 16 for pixel coord -> block row
     lsr a
     lsr a
     lsr a
@@ -361,6 +400,7 @@ Player_MoveLeft:
     lda PlayerX+1
     sec
     sbc #PLAYER_XOFFSET
+    ; Divide by 16 for pixel coord -> block column
     lsr a
     lsr a
     lsr a
@@ -378,6 +418,7 @@ Player_MoveRight:
     lda PlayerY+1
     sec
     sbc #PLAYER_YOFFSET
+    ; Divide by 16 for pixel coord -> block row
     lsr a
     lsr a
     lsr a
@@ -391,6 +432,7 @@ Player_MoveRight:
     lda PlayerX+1
     clc
     adc #PLAYER_XOFFSET
+    ; Divide by 16 for pixel coord -> block column
     lsr a
     lsr a
     lsr a
@@ -402,11 +444,17 @@ Player_MoveRight:
 @done:
     rts
 
-PLAYER_TOP      = 10
-
+; Calculate jump acceleration and subtract it
+; from the player's Y coordinate.  Increment
+; the Jump frame for the next frame's calculation
+; and check for collision with an above block.
+; If the player collided with a block, move the
+; player back down by adding JumpSpeed to the Y
+; coordinate and resetting the jumping state.
 Player_Jumping:
     ldx JumpFrame
 
+    ; JumpSpeed = JumpSpeed - JMP_RATE
     lda JumpSpeed
     sec
     sbc #JMP_RATE
@@ -416,6 +464,7 @@ Player_Jumping:
     sbc #0
     sta JumpSpeed+1
 
+    ; PlayerY = PlayerY - JumpSpeed
     lda PlayerY
     sec
     sbc JumpSpeed
@@ -427,14 +476,18 @@ Player_Jumping:
 
     inc JumpFrame
     dec IsJumping
-    bne @DoCollide
+    bne @checkCollide
 
+    ; Reset jump state if we have no more frames
     lda #0
     sta JumpFrame
     sta PlayerY
     sta JumpFrame
 
-@DoCollide:
+@checkCollide:
+    ; Check for a collision in the same way we
+    ; check the horizontal collision, only with
+    ; different offsets.
     lda PlayerY+1
     sec
     sbc #PLAYER_TOP
@@ -469,10 +522,14 @@ Player_Jumping:
     sta PlayerY+1
     lda #0
     sta IsJumping
-    sta PlayerY
+    sta PlayerY ; Clear the fractional value
 @done:
     rts
 
+; Unlike jumping, falling is linear with a
+; constant acceleration value.  Collision is
+; calculated the same as elsewhere, but using
+; no offsets from the Player's X/Y values.
 Player_Falling:
     lda #0
     sta IsGrounded
@@ -496,6 +553,9 @@ Player_Falling:
     tay
     lda (DataPointer), y
     beq @done
+    ; Snap the player to the floor (top)
+    ; of the brick they collided with and
+    ; reset the grounded and jump states.
     txa
     asl a
     asl a
@@ -552,13 +612,14 @@ ReadControllers:
     LDX #$08
 @player1:
     lda $4016
-    lsr A           ; Bit0 -> Carry
+    lsr A          ; Bit0 -> Carry
     rol Controller ; Bit0 <- Carry
     dex
     bne @player1
     rts
 
-; Was a button pressed this frame?
+; Was the given button pressed this frame?
+; Input button in A.
 ButtonPressed:
     sta btnX
     and Controller
@@ -568,18 +629,18 @@ ButtonPressed:
     and btnX
 
     cmp btnY
-    bne btnPress_stb
+    bne @btnPress_stb
 
     ; no button change
     rts
 
-btnPress_stb:
+@btnPress_stb:
     ; button released
     lda btnY
-    bne btnPress_stc
+    bne @btnPress_stc
     rts
 
-btnPress_stc:
+@btnPress_stc:
     ; button pressed
     lda #1
     rts
@@ -590,5 +651,4 @@ BG_Palette:
 SP_Palette:
     .byte $07, $17, $27, $37
 
-JumpValues_WholeMacro:
 .include "map-data.asm"
