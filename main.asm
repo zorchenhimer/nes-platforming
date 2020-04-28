@@ -456,8 +456,17 @@ Player_Jumping:
     tay
     lda (DataPointer), y
     beq @done
-    inc PlayerY+1
-    inc PlayerY+1
+
+    ; Player collided, move them back down and
+    ; reset the jump state.
+    lda PlayerY
+    clc
+    adc JumpSpeed
+    sta PlayerY
+
+    lda PlayerY+1
+    adc JumpSpeed+1
+    sta PlayerY+1
     lda #0
     sta IsJumping
     sta PlayerY
