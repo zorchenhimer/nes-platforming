@@ -2,11 +2,19 @@
 
 This is a simple platforming physics demo for the NES in 6502 assembly.
 
-## Build Requirements
+## Building
+
+Building requires the following software installed:
 
 - GNU Make
-- ca65 and ld65
-- chrutil
+- [cc65 compiler suite](https://github.com/cc65/cc65)
+- Go
+- Aesprite (optional)
+
+To build:
+
+    $ git clone https://github.com/zorchenhimer/nes-platforming.git
+    $ cd nes-platforming && make
 
 ## License
 

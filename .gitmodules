@@ -1,0 +1,3 @@
+[submodule "go-nes"]
+	path = go-nes
+	url = https://github.com/zorchenhimer/go-nes.git
